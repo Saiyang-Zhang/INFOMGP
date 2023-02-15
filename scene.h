@@ -18,7 +18,6 @@ void stub_dir(const void *obj1, const void *obj2, ccd_vec3_t *dir);
 void center(const void *_obj, ccd_vec3_t *dir);
 
 
-
 //Impulse is defined as a pair <position, direction>
 typedef std::pair<RowVector3d,RowVector3d> Impulse;
 
@@ -47,6 +46,8 @@ public:
   double totalVolume;
   RowVector3d comVelocity;  //the linear velocity of the center of mass
   RowVector3d angVelocity;  //the angular velocity of the object.
+
+  RowVector3d acceleration;
   
   //dynamics
   std::vector<Impulse> currImpulses;  //current list of impulses, updated by collision handling
@@ -134,7 +135,23 @@ public:
     
     return Matrix3d::Identity(3,3);  //change this to your result
   }
-  
+
+  void addForce(RowVector3d f){
+    acceleration += f*(1/totalMass);
+  }
+ 
+  //Integrating the linear and angular velocities of the object
+  //You need to modify this to integrate from acceleration in the field (basically gravity)
+  void updateVelocity(double timeStep){
+    
+    if (isFixed)
+      return;
+    
+    //integrating external forces (only gravity)
+    Vector3d gravity; gravity<<0,-9.8,0.0;
+    comVelocity+=gravity*timeStep;
+    comVelocity+=acceleration*timeStep;
+  } 
   
   //Update the current position and orientation by integrating the linear and angular velocities, and update currV accordingly
   //You need to modify this according to its purpose
@@ -143,14 +160,19 @@ public:
     if (isFixed)
       return;  //a fixed object is immobile
     
-    /***************
-     TODO
-     ***************/
+    COM += (comVelocity+0.5*acceleration)*timeStep;
     
     for (int i=0;i<currV.rows();i++)
       currV.row(i)<<QRot(origV.row(i), orientation)+COM;
   }
   
+  
+  //the full integration for the time step (velocity + position)
+  //You need to modify this if you are changing the integration
+  void integrate(double timeStep){
+    updatePosition(timeStep);
+    updateVelocity(timeStep);
+  }
   
   //Updating velocity *instantaneously*. i.e., not integration from acceleration, but as a result of a collision impulse from the "impulses" list
   //You need to modify this for that purpose.
@@ -220,27 +242,6 @@ public:
   }
   
   
-  //Integrating the linear and angular velocities of the object
-  //You need to modify this to integrate from acceleration in the field (basically gravity)
-  void updateVelocity(double timeStep){
-    
-    if (isFixed)
-      return;
-    
-    //integrating external forces (only gravity)
-    Vector3d gravity; gravity<<0,-9.8,0.0;
-    comVelocity+=gravity*timeStep;
-  }
-  
-  
-  //the full integration for the time step (velocity + position)
-  //You need to modify this if you are changing the integration
-  void integrate(double timeStep){
-    updateVelocity(timeStep);
-    updatePosition(timeStep);
-  }
-  
-  
   Mesh(const MatrixXd& _V, const MatrixXi& _F, const MatrixXi& _T, const double density, const bool _isFixed, const RowVector3d& _COM, const RowVector4d& _orientation){
     origV=_V;
     F=_F;
@@ -250,6 +251,8 @@ public:
     orientation=_orientation;
     comVelocity.setZero();
     angVelocity.setZero();
+
+    acceleration.setZero();
     
     RowVector3d naturalCOM;  //by the geometry of the object
     

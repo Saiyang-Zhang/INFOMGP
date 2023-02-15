@@ -177,7 +177,8 @@ int main(int argc, char *argv[])
     //mgpViewer.data_list[i].set_mesh(scene.meshes[i].currV, scene.meshes[i].F);
   }
   //mgpViewer.core.align_camera_center(scene.meshes[0].currV);
-  
+
+  scene.meshes[1].addForce(RowVector3d(100, 0, 0));
   
   mgpViewer.callback_pre_draw = &pre_draw;
   mgpViewer.callback_key_down = &key_down;
