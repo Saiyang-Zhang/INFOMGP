@@ -147,8 +147,10 @@ public:
      TODO
      ***************/
     
-    for (int i=0;i<currV.rows();i++)
-      currV.row(i)<<QRot(origV.row(i), orientation)+COM;
+    COM += comVelocity;
+
+    for (int i = 0; i < currV.rows(); i++)
+        currV.row(i) << QRot(origV.row(i), orientation) + COM;
   }
   
   
@@ -317,30 +319,26 @@ public:
     std::cout<<"penPosition: "<<penPosition<<std::endl;
     //std::cout<<"handleCollision begin"<<std::endl;
     
-    
+    double M1 = m1.totalMass;
+    double M2 = m2.totalMass;
+
     //Interpretation resolution: move each object by inverse mass weighting, unless either is fixed, and then move the other. Remember to respect the direction of contactNormal and update penPosition accordingly.
     RowVector3d contactPosition;
-    if (m1.isFixed){
-      /***************
-       TODO
-       ***************/
-    } else if (m2.isFixed){
-      /***************
-       TODO
-       ***************/
-    } else { //inverse mass weighting
-      /***************
-       TODO
-       ***************/
-    }
+    RowVector3d dir = contactNormal * depth;
+    if (m1.isFixed)
+        contactPosition = penPosition;
+    else if (m2.isFixed)
+        contactPosition = penPosition + dir;
+    else
+        contactPosition = penPosition + M2 / (M1 + M2) * dir;
     
-    
-    //Create impulse and push them into m1.impulses and m2.impulses.
-    /***************
-     TODO
-     ***************/
-    
-    RowVector3d impulse=RowVector3d::Zero();  //change this to your result
+    RowVector3d v1 = m1.comVelocity + m1.angVelocity.cross(contactPosition - m1.COM);
+    double M1v = v1.dot(contactNormal);
+    RowVector3d v2 = m2.comVelocity + m2.angVelocity.cross(contactPosition - m2.COM);
+    double M2v = v2.dot(-contactNormal);
+
+    double I = 2 * (M1v - M2v) * M1 * M2 / (M1 + M2);
+    RowVector3d impulse= contactNormal * I;
     
     std::cout<<"impulse: "<<impulse<<std::endl;
     if (impulse.norm()>10e-6){
