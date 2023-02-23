@@ -17,7 +17,10 @@ void support(const void *_obj, const ccd_vec3_t *_d, ccd_vec3_t *_p);
 void stub_dir(const void *obj1, const void *obj2, ccd_vec3_t *dir);
 void center(const void *_obj, ccd_vec3_t *dir);
 
-
+class Interaction {
+public:
+  RowVector3d normal;
+};
 
 //Impulse is defined as a pair <position, direction>
 typedef std::pair<RowVector3d,RowVector3d> Impulse;
@@ -147,7 +150,10 @@ public:
      TODO
      ***************/
     
-    COM += comVelocity;
+    COM += comVelocity*timeStep;
+    orientation[0] += angVelocity[0]*timeStep;
+    orientation[1] += angVelocity[1]*timeStep;
+    orientation[2] += angVelocity[2]*timeStep;
 
     for (int i = 0; i < currV.rows(); i++)
         currV.row(i) << QRot(origV.row(i), orientation) + COM;
@@ -176,7 +182,7 @@ public:
         r.normalize();
         RowVector3d comv = i.second.dot(r) * r / totalMass;
         RowVector3d angv = i.second / totalMass - comv;
-        angv = r.cross(angv) / R;
+        angv = r.cross(angv) / (R * R);
         comVelocity += comv;
         angVelocity += angv;
     }
