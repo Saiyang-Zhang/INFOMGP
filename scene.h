@@ -128,6 +128,8 @@ public:
   Matrix3d getCurrInvInertiaTensor(){
     Matrix3d R=Q2RotMatrix(orientation);
     
+    double Ixx, Iyy, Izz, Ixy, Izy, Ixz;
+
     /***************
      TODO
      ***************/
@@ -147,7 +149,7 @@ public:
      TODO
      ***************/
     
-    COM += comVelocity;
+    COM += comVelocity * timeStep;
 
     for (int i = 0; i < currV.rows(); i++)
         currV.row(i) << QRot(origV.row(i), orientation) + COM;
@@ -337,23 +339,27 @@ public:
     //Interpretation resolution: move each object by inverse mass weighting, unless either is fixed, and then move the other. Remember to respect the direction of contactNormal and update penPosition accordingly.
     RowVector3d contactPosition;
     RowVector3d dir = contactNormal * depth;
+
+    //RowVector3d v1 = m1.comVelocity + m1.angVelocity.cross(contactPosition - m1.COM);
+    RowVector3d v1 = m1.comVelocity;
+    double M1v = v1.dot(contactNormal);
+    //RowVector3d v2 = m2.comVelocity + m2.angVelocity.cross(contactPosition - m2.COM);
+    RowVector3d v2 = m2.comVelocity;
+    double M2v = v2.dot(-contactNormal);
+
     double I;
     if (m1.isFixed) {
         contactPosition = penPosition;
         m2.COM += dir;
-
-        RowVector3d v2 = m2.comVelocity + m2.angVelocity.cross(contactPosition - m2.COM);
-        double M2v = v2.dot(-contactNormal);
-
+        if (2 * pow(M2v, 2) < 9.8 * depth)
+            return;
         I = 2 * M2v * M2;
     }    
     else if (m2.isFixed) {
         contactPosition = penPosition + dir;
         m1.COM -= dir;
-
-        RowVector3d v1 = m1.comVelocity + m1.angVelocity.cross(contactPosition - m1.COM);
-        double M1v = v1.dot(contactNormal);
-
+        if (2 * pow(M1v, 2) < 9.8 * depth)
+            return;
         I = 2 * M1v * M1;
     }
     else {
@@ -361,13 +367,7 @@ public:
         m1.COM -= (contactPosition - penPosition);
         m2.COM += (dir - contactPosition + penPosition);
 
-        RowVector3d v1 = m1.comVelocity + m1.angVelocity.cross(contactPosition - m1.COM);
-        double M1v = v1.dot(contactNormal);
-        RowVector3d v2 = m2.comVelocity + m2.angVelocity.cross(contactPosition - m2.COM);
-        double M2v = v2.dot(-contactNormal);
-
         I = 2 * (M2v - M1v) * M1 * M2 / (M1 + M2);
-        
     }
     
     RowVector3d impulse = contactNormal * I;
